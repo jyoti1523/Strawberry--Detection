@@ -1,0 +1,59 @@
+# strawberry-Detection
+
+
+import cv2
+import numpy as np
+from matplotlib import pyplot as plt
+img=cv2.imread('s3.jpg',1)
+resize=cv2.resize(img,(500,700) )
+cv2.imshow('image',resize)
+blur=cv2.GaussianBlur(resize,(15,15),0)
+hsv=cv2.cvtColor(img,cv2.COLOR_BGR2HSV)
+min_red = np.array([0, 100, 80])
+max_red = np.array([10, 256, 256])
+
+# layer
+mask1 = cv2.inRange(hsv, min_red, max_red)
+
+# birghtness of a color is hue
+# 170-180 hue
+min_red2 = np.array([170, 100, 80])
+max_red2 =  np.array([180, 256, 256])
+mask2 = cv2.inRange(hsv, min_red2, max_red2)
+mask=mask1+ mask2
+
+result=cv2.bitwise_and(img,img,mask=mask)#there will be color in the inrange 1,0 if it is inrange then 1 not then 0 then if 1 in bitwise mask there is color in frame
+gray=cv2.cvtColor(result,cv2.COLOR_BGR2GRAY)
+retval,threshold=cv2.threshold(gray,10,255,cv2.THRESH_BINARY)
+retval,otsu=cv2.threshold(gray,125,255,cv2.THRESH_BINARY+cv2.THRESH_OTSU)
+fg=cv2.erode(otsu,None,iterations=2)
+bgt=cv2.dilate(otsu,None,iterations=3)
+ret,bg=cv2.threshold(bgt,1,128,1)
+marker=cv2.add(fg,bg)
+marker32=np.int32(marker)
+#cv2.watershed(img,marker32)
+m=cv2.convertScaleAbs(marker32)
+k1=np.ones((3,3))
+k2=np.ones((5,5))
+bottom_image=cv2.morphologyEx(otsu,cv2.MORPH_CLOSE,k1)
+bottom_image=255-bottom_image
+retval,otsu1=cv2.threshold(gray,125,255,cv2.THRESH_BINARY_INV+cv2.THRESH_OTSU)
+opening=cv2.morphologyEx(otsu1,cv2.MORPH_OPEN,k1)
+dilate=cv2.morphologyEx(opening,cv2.MORPH_DILATE,k2)
+dilate=cv2.bitwise_not(dilate)
+bottom_image=cv2.morphologyEx(bottom_image,cv2.MORPH_CLOSE,k1)
+edged = cv2.Canny(dilate, 30, 200)
+contours, hierarchy = cv2.findContours(edged, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+cv2.drawContours(dilate, contours, -1, (0, 255, 0), 3)
+for cnt in contours:
+
+    rect= cv2.minAreaRect(cnt)
+    box= cv2.boxPoints(rect)
+    box=np.int0(box)
+    img=cv2.drawContours(result,[box],0,(0,255,0),3)
+
+
+resize =cv2.resize(result,(700,500))
+cv2.imshow('final',resize)
+cv2.waitKey(0)
+cv2.destroyAllWindows()
